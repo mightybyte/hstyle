@@ -1,0 +1,8 @@
+*~
+dist/
+*.tix
+.hpc
+*.prof
+*.hi
+*.o
+*.swp
