@@ -5,6 +5,7 @@ description:    Originally intended to automate style checking for the Snap
                 project.  But the project should be general enough to work
                 with other style guides.
 license:        BSD3
+license-file:   LICENSE
 author:         Doug Beardsley
 maintainer:     mightybyte@mightybyte.net
 build-type:     Simple
@@ -24,10 +25,10 @@ Executable hstyle
     text
 
   if impl(ghc >= 6.12.0)
-    ghc-options: -Wall -fwarn-tabs -funbox-strict-fields -O2
+    ghc-options: -Wall -fwarn-tabs -funbox-strict-fields
                  -fno-warn-orphans -fno-warn-unused-do-bind
   else
-    ghc-options: -Wall -fwarn-tabs -funbox-strict-fields -O2
+    ghc-options: -Wall -fwarn-tabs -funbox-strict-fields
                  -fno-warn-orphans
 
 source-repository head
