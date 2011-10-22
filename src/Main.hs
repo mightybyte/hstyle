@@ -7,7 +7,8 @@ checks and automatic fixes implemented eventually.
 -}
 module Main where
 
-import           System
+import           System.Environment
+import           System.Exit
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TI
@@ -69,25 +70,25 @@ lineChecks = [lineLength 78, noTabs, trailingSpaces]
 -- | Applies a list of checks to a list of lines.  Returns a list of
 -- 'Problem's.
 onLines :: [Check] -> [Text] -> [Problem]
-onLines fs thelines = concat $ map (go 1 thelines) fs
+onLines fs thelines = concatMap (go 1 thelines) fs
   where
     go _ [] _ = []
     go num (l:ls) f = case f l of
         Nothing -> go (num+1) ls f
-        Just er -> (Problem num er) : go (num+1) ls f
+        Just er -> Problem num er : go (num+1) ls f
 
 
 ------------------------------------------------------------------------------
 -- | Breaks a file into lines and runs all the checks on them.
 checkContents :: Text -> [Problem]
-checkContents c = lineChecks `onLines` (T.lines c)
+checkContents c = lineChecks `onLines` T.lines c
 
 
 ------------------------------------------------------------------------------
 -- | Runs checks on the specified file.
 checkFile :: FilePath -> IO (FilePath, [Problem])
 checkFile f = do
-    problems <- return . checkContents =<< TI.readFile f    
+    problems <- return . checkContents =<< TI.readFile f
     return (f,problems)
 
 
@@ -103,15 +104,14 @@ checkStyle fs = do
         _  -> exitWith (ExitFailure 1)
   where
     printResults (f,ps) = mapM_ (printRes f) ps
-    printRes f p = putStrLn $ f ++ " line " ++ (show $ probLine p) ++
-                              ": " ++ (probDescription p)
+    printRes f p = putStrLn $ f ++ " line " ++ show (probLine p) ++
+                              ": " ++ probDescription p
 
 
 ------------------------------------------------------------------------------
 -- | Placeholder for fixing style problems.
 fixStyle :: t -> a
-fixStyle _ = do
-    error "Not implemented"
+fixStyle _ = error "Not implemented"
 
 
 ------------------------------------------------------------------------------
