@@ -19,7 +19,7 @@ checkAlignment alignment
     alignment' = filter (not . null) alignment
     heads	   = map head alignment'
 
-equal :: Eq a
+equal :: Eq a   
       => [a]
       -> Bool
 equal (x : y : r)

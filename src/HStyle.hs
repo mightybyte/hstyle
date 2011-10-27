@@ -5,6 +5,7 @@ module HStyle
     ) where
 
 import Control.Monad (forM_, unless)
+import Data.Char (isSpace)
 import System.Environment (getArgs)
 
 import qualified Data.Text as T
@@ -61,6 +62,12 @@ lineLengthCheck max' = checkLines $ \line -> if T.length line > max'
     then Just $ "exceeds max line length of " `T.append` T.pack (show max')
     else Nothing
 
+trailingWhiteSpace :: Checker
+trailingWhiteSpace = checkLines $ \line ->
+    if not (T.null line) && isSpace (T.last line)
+        then Just "trailing whitespace"
+        else Nothing
+
 main :: IO ()
 main = do
     [file] <- getArgs
@@ -71,4 +78,5 @@ main = do
             runRule block md (typeSigSelector, typeSigCheck)
             runRule block md (selectLines, tabsCheck)
             runRule block md (selectLines, lineLengthCheck 80)
+            runRule block md (selectLines, trailingWhiteSpace)
         err         -> putStrLn $ show err
