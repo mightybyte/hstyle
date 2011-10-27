@@ -6,6 +6,8 @@ module HStyle.Block
     , prettyBlock
     , toLines
     , subBlock
+    , perLine
+    , absoluteLineNumber
     ) where
 
 import Data.Text (Text)
@@ -47,3 +49,15 @@ subBlock start end block = Block
     { blockOffset = blockOffset block + start - 1
     , blockLines  = V.slice (start - 1) (end - start + 1) $ blockLines block
     }
+
+-- | Create a new block for every line.
+perLine :: Block -> [Block]
+perLine (Block offset lines')  = map line $
+    zip [offset + 0 ..] $ V.toList lines'
+  where
+    line (i, t) = Block i $ V.singleton t
+
+-- | Convert relative line number (within this block, 1-based) to an absolute
+-- line number
+absoluteLineNumber :: Int -> Block -> Int
+absoluteLineNumber i = (+ i) . blockOffset

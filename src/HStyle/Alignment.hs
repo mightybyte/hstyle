@@ -8,6 +8,7 @@ import qualified Data.Text as T
 type Lines = [Text]
 type Alignment = [[(Int, Text)]]
 
+-- This is a really really long comment and I'm not sure if this is a good idea cause it might not fit on one line
 checkAlignment :: Alignment
               -> Maybe Text
 checkAlignment alignment
@@ -16,7 +17,7 @@ checkAlignment alignment
     | otherwise             = Just "Improper alignment!"
   where
     alignment' = filter (not . null) alignment
-    heads      = map head alignment'
+    heads	   = map head alignment'
 
 equal :: Eq a
       => [a]
