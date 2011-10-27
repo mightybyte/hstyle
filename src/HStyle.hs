@@ -13,7 +13,11 @@ import qualified Language.Haskell.Exts.Annotated as H
 
 import HStyle.Alignment
 import HStyle.Block
-import HStyle.Types
+import HStyle.Selector
+import HStyle.Checker
+
+-- | A selector and a check...
+type Rule = (Selector, Check)
 
 runRule :: Block -> H.Module H.SrcSpanInfo -> Rule -> IO ()
 runRule block md (selector, check) = forM_ (selector md block) $ \block' -> do
@@ -46,12 +50,6 @@ typeSigCheck block = case checkAlignment alignment of
     Nothing -> []
   where
     alignment = alignmentOf ["::", "=>", "->"] $ toLines block
-
-selectAll :: Selector
-selectAll _ = return
-
-selectLines :: Selector
-selectLines _ = perLine
 
 tabsCheck :: Check
 tabsCheck block = do
