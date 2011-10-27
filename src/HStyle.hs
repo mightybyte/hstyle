@@ -4,7 +4,7 @@ module HStyle
     , main
     ) where
 
-import Control.Monad (guard, forM_, unless)
+import Control.Monad (forM_, unless)
 import System.Environment (getArgs)
 
 import qualified Data.Text as T
@@ -17,7 +17,7 @@ import HStyle.Selector
 import HStyle.Checker
 
 -- | A selector and a check...
-type Rule = (Selector, Check)
+type Rule = (Selector, Checker)
 
 runRule :: Block -> H.Module H.SrcSpanInfo -> Rule -> IO ()
 runRule block md (selector, check) = forM_ (selector md block) $ \block' -> do
@@ -44,25 +44,22 @@ typeSigSelector md block = map (flip fromSrcSpanInfo block) $ tss md
     tss (H.Module _ _ _ _ decls) = [ssi | H.TypeSig ssi _ _ <- decls]
     tss _                        = []
 
-typeSigCheck :: Check
+typeSigCheck :: Checker
 typeSigCheck block = case checkAlignment alignment of
     Just _  -> [(1, "Bad alignment")]
     Nothing -> []
   where
     alignment = alignmentOf ["::", "=>", "->"] $ toLines block
 
-tabsCheck :: Check
-tabsCheck block = do
-    (ln, text) <- zip [1 ..] (toLines block)
-    case T.findIndex (== '\t') text of
-        Nothing -> []
-        Just i  -> [(ln , "\\t at column " `T.append` T.pack (show $ i + 1))]
+tabsCheck :: Checker
+tabsCheck = checkLines $ \line -> case T.findIndex (== '\t') line of
+    Nothing -> Nothing
+    Just i  -> Just $ "\\t at column " `T.append` T.pack (show $ i + 1)
 
-lineLengthCheck :: Int -> Check
-lineLengthCheck max' block = do
-    (ln, text) <- zip [1 ..] (toLines block)
-    guard $ T.length text > max'
-    return (ln , "exceeds max line length of " `T.append` T.pack (show max'))
+lineLengthCheck :: Int -> Checker
+lineLengthCheck max' = checkLines $ \line -> if T.length line > max'
+    then Just $ "exceeds max line length of " `T.append` T.pack (show max')
+    else Nothing
 
 main :: IO ()
 main = do
