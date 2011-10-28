@@ -26,8 +26,9 @@ fromText text = Block
     , blockLines  = V.fromList $ T.lines text
     }
 
-prettyBlock :: Block -> Text
-prettyBlock block = T.unlines $ map pretty $
+prettyBlock :: Int -> Block -> Text
+prettyBlock indent block = T.unlines $
+    map ((T.replicate indent " " `T.append`) . pretty) $
     zip [offset + 1 ..] $ V.toList lines'
   where
     offset = blockOffset block

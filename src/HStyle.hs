@@ -20,17 +20,17 @@ import HStyle.Checker
 -- | A selector and a check...
 type Rule = (Selector, Checker)
 
-runRule :: Block -> H.Module H.SrcSpanInfo -> Rule -> IO ()
-runRule block md (selector, check) = forM_ (selector md block) $ \block' -> do
-    let problems = check block'
-    unless (null problems) $ do
-        T.putStrLn $ T.replicate 78 "-"
-        T.putStr   $ prettyBlock block'
-        T.putStrLn $ T.replicate 78 "-"
-    forM_ problems $ \(i, problem) -> do
-        let line = absoluteLineNumber i block'
-        T.putStrLn $ T.pack (show line) `T.append` ": " `T.append` problem
-        T.putStrLn ""
+runRule :: FilePath -> Block -> H.Module H.SrcSpanInfo -> Rule -> IO ()
+runRule file block md (selector, check) =
+    forM_ (selector md block) $ \block' -> do
+        let problems = check block'
+        forM_ problems $ \(i, problem) -> do
+            let line = absoluteLineNumber i block'
+            T.putStrLn $ T.pack file `T.append` ":" `T.append`
+                T.pack (show line) `T.append` ": " `T.append` problem
+            T.putStrLn ""
+            T.putStr   $ prettyBlock 4 block'
+            T.putStrLn ""
 
 fromSrcSpanInfo :: H.SrcSpanInfo -> Block -> Block
 fromSrcSpanInfo ssi = subBlock start end
@@ -74,9 +74,10 @@ main = do
     contents <- readFile file
     let block = fromText $ T.pack contents
     case H.parseModule contents of
-        H.ParseOk md -> do
-            runRule block md (typeSigSelector, typeSigCheck)
-            runRule block md (selectLines, tabsCheck)
-            runRule block md (selectLines, lineLengthCheck 80)
-            runRule block md (selectLines, trailingWhiteSpace)
+        H.ParseOk md -> mapM_ (runRule file block md)
+            [ (typeSigSelector, typeSigCheck)
+            , (selectLines, tabsCheck)
+            , (selectLines, lineLengthCheck 80)
+            , (selectLines, trailingWhiteSpace)
+            ]
         err         -> putStrLn $ show err
