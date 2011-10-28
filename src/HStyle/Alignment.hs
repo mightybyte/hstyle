@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module HStyle.Alignment where
 
-import Data.List (find)
+import Data.List (find, nub)
 import Data.Text (Text)
 import qualified Data.Text as T
 
@@ -9,12 +9,13 @@ type Lines = [Text]
 type Alignment = [[(Int, Text)]]
 
 -- This is a really really long comment and I'm not sure if this is a good idea cause it might not fit on one line
-checkAlignment :: Alignment
-              -> Maybe Text
-checkAlignment alignment
+checkAlignmentHead :: Alignment
+                  -> Maybe Text
+checkAlignmentHead alignment
     | null alignment'       = Nothing
-    | equal (map fst heads) = checkAlignment $ map tail alignment'
-    | otherwise             = Just "Improper alignment!"
+    | equal (map fst heads) = Nothing
+    | otherwise             = Just $ "improper alignment of " `T.append`
+        T.pack (show $ nub $ map snd heads)
   where
     alignment' = filter (not . null) alignment
     heads	   = map head alignment'

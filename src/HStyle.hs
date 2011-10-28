@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module HStyle
-    ( runRule
-    , main
+    ( checkStyle
+    , fixStyle
     ) where
 
-import Control.Monad (forM_, unless)
+import Control.Applicative ((<$>))
+import Control.Monad (forM, forM_)
 import Data.Char (isSpace)
-import System.Environment (getArgs)
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -20,9 +20,9 @@ import HStyle.Checker
 -- | A selector and a check...
 type Rule = (Selector, Checker)
 
-runRule :: FilePath -> Block -> H.Module H.SrcSpanInfo -> Rule -> IO ()
-runRule file block md (selector, check) =
-    forM_ (selector md block) $ \block' -> do
+runRule :: FilePath -> Block -> H.Module H.SrcSpanInfo -> Rule -> IO Bool
+runRule file block md (selector, check) = fmap and $
+    forM (selector md block) $ \block' -> do
         let problems = check block'
         forM_ problems $ \(i, problem) -> do
             let line = absoluteLineNumber i block'
@@ -31,6 +31,7 @@ runRule file block md (selector, check) =
             T.putStrLn ""
             T.putStr   $ prettyBlock 4 block'
             T.putStrLn ""
+        return $ null problems
 
 fromSrcSpanInfo :: H.SrcSpanInfo -> Block -> Block
 fromSrcSpanInfo ssi = subBlock start end
@@ -46,8 +47,8 @@ typeSigSelector md block = map (flip fromSrcSpanInfo block) $ tss md
     tss _                        = []
 
 typeSigCheck :: Checker
-typeSigCheck block = case checkAlignment alignment of
-    Just _  -> [(1, "Bad alignment")]
+typeSigCheck block = case checkAlignmentHead alignment of
+    Just t  -> [(1, t)]
     Nothing -> []
   where
     alignment = alignmentOf ["::", "=>", "->"] $ toLines block
@@ -68,16 +69,21 @@ trailingWhiteSpace = checkLines $ \line ->
         then Just "trailing whitespace"
         else Nothing
 
-main :: IO ()
-main = do
-    [file] <- getArgs
+checkStyle :: FilePath -> IO Bool
+checkStyle file = do
     contents <- readFile file
     let block = fromText $ T.pack contents
     case H.parseModule contents of
-        H.ParseOk md -> mapM_ (runRule file block md)
+        H.ParseOk md -> and <$> mapM (runRule file block md)
             [ (typeSigSelector, typeSigCheck)
             , (selectLines, tabsCheck)
-            , (selectLines, lineLengthCheck 80)
+            , (selectLines, lineLengthCheck 78)
             , (selectLines, trailingWhiteSpace)
             ]
-        err         -> putStrLn $ show err
+        err         -> do
+            putStrLn $ "HStyle.checkStyle: could not parse " ++
+                file ++ ": " ++ show err
+            return False
+
+fixStyle :: FilePath -> IO ()
+fixStyle = error "HStyle.fixStyle: Not implemented"

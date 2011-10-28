@@ -1,35 +1,40 @@
-name:           hstyle
-version:        0.2
-synopsis:       Checks Haskell source code for style compliance.
-description:    Originally intended to automate style checking for the Snap
+Name:           hstyle
+Version:        0.2.0.1
+Synopsis:       Checks Haskell source code for style compliance.
+Description:    Originally intended to automate style checking for the Snap
                 project.  But the project should be general enough to work
                 with other style guides.
-license:        BSD3
-license-file:   LICENSE
-author:         Doug Beardsley
-maintainer:     mightybyte@mightybyte.net
-build-type:     Simple
-cabal-version:  >= 1.6
-category:       Development
+License:        BSD3
+License-file:   LICENSE
+Author:         Doug Beardsley <mightybyte@mightybyte.net>
+                Jasper Van der Jeugt <m@jaspervdj.be>
+Maintainer:     Doug Beardsley <mightybyte@mightybyte.net>
+                Jasper Van der Jeugt <m@jaspervdj.be>
+Build-type:     Simple
+Cabal-version:  >= 1.6
+Category:       Development
 
-extra-source-files:
+Extra-source-files:
   README.md
 
 Executable hstyle
-  hs-source-dirs: src
-  main-is: Main.hs
+  Hs-source-dirs: src
+  Main-is:        Main.hs
+  Ghc-options:    -Wall
 
-  build-depends:
-    base >= 4 && < 5,
-    text >= 0.11 && < 0.12
+  Other-modules:
+    HStyle
+    HStyle.Alignment
+    HStyle.Block
+    HStyle.Checker
+    HStyle.Selector
 
-  if impl(ghc >= 6.12.0)
-    ghc-options: -Wall -fwarn-tabs -funbox-strict-fields
-                 -fno-warn-orphans -fno-warn-unused-do-bind
-  else
-    ghc-options: -Wall -fwarn-tabs -funbox-strict-fields
-                 -fno-warn-orphans
+  Build-depends:
+    base             >= 4    && < 5,
+    haskell-src-exts >= 1.11 && < 1.12,
+    text             >= 0.11 && < 0.12,
+    vector           >= 0.7  && < 0.8
 
-source-repository head
+Source-repository head
   type:     git
   location: http://github.com/mightybyte/hstyle
