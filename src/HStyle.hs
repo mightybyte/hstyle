@@ -7,6 +7,8 @@ module HStyle
 import Control.Applicative ((<$>))
 import Control.Monad (forM, forM_)
 import Data.Char (isSpace)
+import Data.List (isPrefixOf)
+import Data.Maybe (fromMaybe)
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -69,11 +71,25 @@ trailingWhiteSpace = checkLines $ \line ->
         then Just "trailing whitespace"
         else Nothing
 
+-- | Filter out lines which use CPP macros
+unCPP :: String -> String
+unCPP = unlines . map unCpp' . lines
+  where
+    unCpp' x
+        | "#" `isPrefixOf` x = ""
+        | otherwise          = x
+
 checkStyle :: FilePath -> IO Bool
 checkStyle file = do
     contents <- readFile file
-    let block = fromText $ T.pack contents
-    case H.parseModule contents of
+    let block      = fromText $ T.pack contents
+        -- Determine the extensions used in the file, and update the parsing
+        -- mode based upon those
+        exts      = fromMaybe [] $ H.readExtensions contents
+        mode      = H.defaultParseMode {H.extensions = exts}
+        -- Special handling for CPP, haskell-src-exts can't deal with it
+        contents' = if H.CPP `elem` exts then unCPP contents else contents
+    case H.parseModuleWithMode mode contents' of
         H.ParseOk md -> and <$> mapM (runRule file block md)
             [ (typeSigSelector, typeSigCheck)
             , (selectLines, tabsCheck)
