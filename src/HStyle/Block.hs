@@ -3,6 +3,7 @@
 module HStyle.Block
     ( Block
     , fromText
+    , toText
     , prettyBlock
     , toLines
     , subBlock
@@ -27,6 +28,9 @@ fromText text = Block
     { blockOffset = 0
     , blockLines  = V.fromList $ T.lines text
     }
+
+toText :: Block -> Text
+toText = T.unlines . toLines
 
 prettyBlock :: Int -> Block -> Text
 prettyBlock indent block = T.unlines $

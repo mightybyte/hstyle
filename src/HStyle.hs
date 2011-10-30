@@ -5,7 +5,7 @@ module HStyle
     , fixStyle
     ) where
 
-import Control.Monad (foldM, forM_, unless)
+import Control.Monad (foldM, forM_, unless, when)
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
 import Data.Maybe (fromMaybe)
@@ -118,12 +118,15 @@ checkStyle quiet file = do
         contents' = if H.CPP `elem` exts then unCPP contents else contents
         fs        = FileState block False True
     case H.parseModuleWithMode mode contents' of
-        H.ParseOk md -> foldM (runRule quiet file md) fs
-            [ (typeSigSelector, typeSigCheck,       fixNothing)
-            , (selectLines,     tabsCheck,          fixNothing)
-            , (selectLines,     lineLengthCheck 78, fixNothing)
-            , (selectLines,     trailingWhiteSpace, trailingWhiteSpaceFixer)
-            ]
+        H.ParseOk md -> do
+            fs' <- foldM (runRule quiet file md) fs
+                [ (typeSigSelector, typeSigCheck,       fixNothing)
+                , (selectLines,     tabsCheck,          fixNothing)
+                , (selectLines,     lineLengthCheck 78, fixNothing)
+                , (selectLines,     trailingWhiteSpace, trailingWhiteSpaceFixer)
+                ]
+            when (fileUpdated fs') $ T.writeFile file $ toText $ fileBlock fs'
+            return fs'
         err         -> do
             putStrLn $ "HStyle.checkStyle: could not parse " ++
                 file ++ ": " ++ show err
