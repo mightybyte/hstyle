@@ -6,6 +6,7 @@ module HStyle.Block
     , prettyBlock
     , toLines
     , subBlock
+    , updateSubBlock
     , perLine
     , absoluteLineNumber
     , mapLines
@@ -51,6 +52,26 @@ subBlock start end block = Block
     { blockOffset = blockOffset block + start - 1
     , blockLines  = V.slice (start - 1) (end - start + 1) $ blockLines block
     }
+
+-- | Update a subblock
+updateSubBlock :: Block  -- ^ Old
+               -> Block  -- ^ New
+               -> Block  -- ^ Block to update
+               -> Block  -- ^ Resulting block
+updateSubBlock old new block
+    | blockOffset old /= blockOffset new =
+        error "HStyle.Block.updateSubBlock: Internal error"
+    | otherwise                          = block
+        { blockLines = V.take subOffset lines' V.++ blockLines new V.++
+            V.drop (subOffset + V.length oldLines) lines'
+        }
+  where
+    subOffset
+        | blockOffset old == blockOffset new = blockOffset old
+        | otherwise                          = error
+            "HStyle.Block.updateSubBlock: Internal error"
+    oldLines = blockLines old
+    lines'   = blockLines block
 
 -- | Create a new block for every line.
 perLine :: Block -> [Block]
