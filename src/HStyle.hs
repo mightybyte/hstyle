@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module HStyle
-    ( checkStyle
+    ( FileState (..)
+    , checkStyle
     , fixStyle
     ) where
 
-import Control.Applicative ((<$>))
-import Control.Monad (forM, forM_, unless)
+import Control.Monad (foldM, forM_, unless)
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
 import Data.Maybe (fromMaybe)
@@ -23,26 +23,41 @@ import HStyle.Fixer
 -- | A selector and a check...
 type Rule = (Selector, Checker, Fixer)
 
-runRule :: Bool -> FilePath -> Block -> H.Module H.SrcSpanInfo -> Rule
-        -> IO Bool
-runRule quiet file block md (selector, checker, fixer) = fmap and $
-    forM (selector md block) $ \block' -> do
-        let problems = checker block'
-        let fixed    = fixer block'
+data FileState = FileState
+    { fileBlock   :: Block
+    , fileUpdated :: Bool
+    , fileOk      :: Bool
+    } deriving (Show)
+
+runRule :: Bool -> FilePath -> H.Module H.SrcSpanInfo
+        -> FileState -> Rule -> IO FileState
+runRule quiet file md fileState (selector, checker, fixer) =
+    foldM checkBlock fileState (selector md $ fileBlock fileState)
+  where
+    checkBlock :: FileState -> Block -> IO FileState
+    checkBlock fs block = do
+        let problems        = checker block
+        let (fixed, block') = case fixer block of
+                Nothing -> (False, block)
+                Just b  -> (True, b)
         forM_ problems $ \(i, problem) -> do
-            let line = absoluteLineNumber i block'
+            let line = absoluteLineNumber i (fileBlock fs)
             T.putStrLn $ T.pack file `T.append` ":" `T.append`
                 T.pack (show line) `T.append` ": " `T.append` problem
             unless quiet $ do
                 T.putStrLn "    Found:"
-                T.putStr   $ prettyBlock 4 block'
-                case fixed of
-                    Nothing -> T.putStrLn "    (Couldn't automatically fix)"
-                    Just f  -> do
+                T.putStr   $ prettyBlock 4 block
+                if not fixed
+                    then T.putStrLn "    (Couldn't automatically fix)"
+                    else do
                         T.putStrLn "    Fixed to:"
-                        T.putStr   $ prettyBlock 4 f
+                        T.putStr $ prettyBlock 4 block'
                 T.putStrLn ""
-        return $ null problems
+        return fs
+            { fileBlock   = updateSubBlock block block' (fileBlock fs)
+            , fileUpdated = fileUpdated fs || fixed
+            , fileOk      = fileOk fs      && null problems
+            }
 
 fromSrcSpanInfo :: H.SrcSpanInfo -> Block -> Block
 fromSrcSpanInfo ssi = subBlock start end
@@ -91,7 +106,7 @@ unCPP = unlines . map unCpp' . lines
         | "#" `isPrefixOf` x = ""
         | otherwise          = x
 
-checkStyle :: Bool -> FilePath -> IO Bool
+checkStyle :: Bool -> FilePath -> IO FileState
 checkStyle quiet file = do
     contents <- readFile file
     let block     = fromText $ T.pack contents
@@ -101,8 +116,9 @@ checkStyle quiet file = do
         mode      = H.defaultParseMode {H.extensions = exts}
         -- Special handling for CPP, haskell-src-exts can't deal with it
         contents' = if H.CPP `elem` exts then unCPP contents else contents
+        fs        = FileState block False True
     case H.parseModuleWithMode mode contents' of
-        H.ParseOk md -> and <$> mapM (runRule quiet file block md)
+        H.ParseOk md -> foldM (runRule quiet file md) fs
             [ (typeSigSelector, typeSigCheck,       fixNothing)
             , (selectLines,     tabsCheck,          fixNothing)
             , (selectLines,     lineLengthCheck 78, fixNothing)
@@ -111,7 +127,7 @@ checkStyle quiet file = do
         err         -> do
             putStrLn $ "HStyle.checkStyle: could not parse " ++
                 file ++ ": " ++ show err
-            return False
+            return fs
 
 fixStyle :: FilePath -> IO ()
 fixStyle = error "HStyle.fixStyle: Not implemented"

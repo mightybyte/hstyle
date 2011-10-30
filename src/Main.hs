@@ -33,5 +33,5 @@ hstyle = HStyle
 main :: IO ()
 main = do
     config <- cmdArgs hstyle
-    ok <- and <$> mapM (checkStyle $ quiet config) (files config)
+    ok <- all fileOk <$> mapM (checkStyle $ quiet config) (files config)
     exitWith $ if ok then ExitSuccess else ExitFailure 1
