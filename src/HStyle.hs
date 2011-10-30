@@ -5,7 +5,7 @@ module HStyle
     ) where
 
 import Control.Applicative ((<$>))
-import Control.Monad (forM, forM_)
+import Control.Monad (forM, forM_, unless)
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
 import Data.Maybe (fromMaybe)
@@ -22,17 +22,19 @@ import HStyle.Checker
 -- | A selector and a check...
 type Rule = (Selector, Checker)
 
-runRule :: FilePath -> Block -> H.Module H.SrcSpanInfo -> Rule -> IO Bool
-runRule file block md (selector, check) = fmap and $
+runRule :: Bool -> FilePath -> Block -> H.Module H.SrcSpanInfo -> Rule
+        -> IO Bool
+runRule quiet file block md (selector, check) = fmap and $
     forM (selector md block) $ \block' -> do
         let problems = check block'
         forM_ problems $ \(i, problem) -> do
             let line = absoluteLineNumber i block'
             T.putStrLn $ T.pack file `T.append` ":" `T.append`
                 T.pack (show line) `T.append` ": " `T.append` problem
-            T.putStrLn ""
-            T.putStr   $ prettyBlock 4 block'
-            T.putStrLn ""
+            unless quiet $ do
+                T.putStrLn ""
+                T.putStr   $ prettyBlock 4 block'
+                T.putStrLn ""
         return $ null problems
 
 fromSrcSpanInfo :: H.SrcSpanInfo -> Block -> Block
@@ -79,10 +81,10 @@ unCPP = unlines . map unCpp' . lines
         | "#" `isPrefixOf` x = ""
         | otherwise          = x
 
-checkStyle :: FilePath -> IO Bool
-checkStyle file = do
+checkStyle :: Bool -> FilePath -> IO Bool
+checkStyle quiet file = do
     contents <- readFile file
-    let block      = fromText $ T.pack contents
+    let block     = fromText $ T.pack contents
         -- Determine the extensions used in the file, and update the parsing
         -- mode based upon those
         exts      = fromMaybe [] $ H.readExtensions contents
@@ -90,7 +92,7 @@ checkStyle file = do
         -- Special handling for CPP, haskell-src-exts can't deal with it
         contents' = if H.CPP `elem` exts then unCPP contents else contents
     case H.parseModuleWithMode mode contents' of
-        H.ParseOk md -> and <$> mapM (runRule file block md)
+        H.ParseOk md -> and <$> mapM (runRule quiet file block md)
             [ (typeSigSelector, typeSigCheck)
             , (selectLines, tabsCheck)
             , (selectLines, lineLengthCheck 78)
