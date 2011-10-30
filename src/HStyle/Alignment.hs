@@ -14,7 +14,7 @@ checkAlignmentHead :: Alignment
 checkAlignmentHead alignment
     | null alignment'       = Nothing
     | equal (map fst heads) = Nothing
-    | otherwise             = Just $ "improper alignment of " `T.append`
+    | otherwise             = Just $ "Improper alignment of " `T.append`
         T.pack (show $ nub $ map snd heads)
   where
     alignment' = filter (not . null) alignment

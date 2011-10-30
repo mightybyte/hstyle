@@ -8,6 +8,7 @@ module HStyle.Block
     , subBlock
     , perLine
     , absoluteLineNumber
+    , mapLines
     ) where
 
 import Data.Text (Text)
@@ -62,3 +63,7 @@ perLine (Block offset lines')  = map line $
 -- line number
 absoluteLineNumber :: Int -> Block -> Int
 absoluteLineNumber i = (+ i) . blockOffset
+
+-- | Map over the lines in a block
+mapLines :: (Text -> Text) -> Block -> Block
+mapLines f block = block {blockLines = V.map f (blockLines block)}

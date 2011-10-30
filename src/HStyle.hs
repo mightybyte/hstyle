@@ -18,22 +18,29 @@ import HStyle.Alignment
 import HStyle.Block
 import HStyle.Selector
 import HStyle.Checker
+import HStyle.Fixer
 
 -- | A selector and a check...
-type Rule = (Selector, Checker)
+type Rule = (Selector, Checker, Fixer)
 
 runRule :: Bool -> FilePath -> Block -> H.Module H.SrcSpanInfo -> Rule
         -> IO Bool
-runRule quiet file block md (selector, check) = fmap and $
+runRule quiet file block md (selector, checker, fixer) = fmap and $
     forM (selector md block) $ \block' -> do
-        let problems = check block'
+        let problems = checker block'
+        let fixed    = fixer block'
         forM_ problems $ \(i, problem) -> do
             let line = absoluteLineNumber i block'
             T.putStrLn $ T.pack file `T.append` ":" `T.append`
                 T.pack (show line) `T.append` ": " `T.append` problem
             unless quiet $ do
-                T.putStrLn ""
+                T.putStrLn "    Found:"
                 T.putStr   $ prettyBlock 4 block'
+                case fixed of
+                    Nothing -> T.putStrLn "    (Couldn't automatically fix)"
+                    Just f  -> do
+                        T.putStrLn "    Fixed to:"
+                        T.putStr   $ prettyBlock 4 f
                 T.putStrLn ""
         return $ null problems
 
@@ -64,14 +71,17 @@ tabsCheck = checkLines $ \line -> case T.findIndex (== '\t') line of
 
 lineLengthCheck :: Int -> Checker
 lineLengthCheck max' = checkLines $ \line -> if T.length line > max'
-    then Just $ "exceeds max line length of " `T.append` T.pack (show max')
+    then Just $ "Exceeds max line length of " `T.append` T.pack (show max')
     else Nothing
 
 trailingWhiteSpace :: Checker
 trailingWhiteSpace = checkLines $ \line ->
     if not (T.null line) && isSpace (T.last line)
-        then Just "trailing whitespace"
+        then Just "Trailing whitespace"
         else Nothing
+
+trailingWhiteSpaceFixer :: Fixer
+trailingWhiteSpaceFixer = fixLines T.stripEnd
 
 -- | Filter out lines which use CPP macros
 unCPP :: String -> String
@@ -93,10 +103,10 @@ checkStyle quiet file = do
         contents' = if H.CPP `elem` exts then unCPP contents else contents
     case H.parseModuleWithMode mode contents' of
         H.ParseOk md -> and <$> mapM (runRule quiet file block md)
-            [ (typeSigSelector, typeSigCheck)
-            , (selectLines, tabsCheck)
-            , (selectLines, lineLengthCheck 78)
-            , (selectLines, trailingWhiteSpace)
+            [ (typeSigSelector, typeSigCheck,       fixNothing)
+            , (selectLines,     tabsCheck,          fixNothing)
+            , (selectLines,     lineLengthCheck 78, fixNothing)
+            , (selectLines,     trailingWhiteSpace, trailingWhiteSpaceFixer)
             ]
         err         -> do
             putStrLn $ "HStyle.checkStyle: could not parse " ++
